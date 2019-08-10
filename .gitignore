@@ -4,3 +4,7 @@
 env/
 
 xerxes
+
+\.DS_Store
+
+config\.json
